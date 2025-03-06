@@ -1,38 +1,5 @@
 -- In this SQL file, write (and comment!) the schema of your database, including the CREATE TABLE, CREATE INDEX, CREATE VIEW, etc. statements that compose it
 
-
--- triggers and functions
----- when a client reserve a room, the amount of hour will be substract from time_account of the client
-DELIMITER //
-CREATE TRIGGER update_time_account AFTER INSERT ON `reservations`
-FOR EACH ROW
-BEGIN
-    UPDATE `time_accounts`
-    SET `time_amount` = `time_amount` - NEW.`total_hours`
-    WHERE `client_id` = NEW.`client_id`;
-END //
-DELIMITER ;
-
----- when insert a new client, create a time_account associated
-DELIMITER //
-CREATE TRIGGER create_time_account AFTER INSERT ON `clients`
-FOR EACH ROW
-BEGIN
-    INSERT INTO `time_accounts` (`client_id`, `time_amount`, `expire_date`, `start_date`)
-    VALUES (NEW.id, 0, NextYear(), CURDATE());
-END //
-DELIMITER ;
-
----- calculete next year. this functions its for measure expire date
-DELIMITER //
-CREATE FUNCTION IF NOT EXISTS `NextYear`() RETURNS DATE
-DETERMINISTIC
-BEGIN
-    RETURN CURDATE() + INTERVAL 1 YEAR;
-END //
-DELIMITER ;
-
-
 -- Create entitys tables
 
 ---- client entity
@@ -53,6 +20,7 @@ CREATE TABLE IF NOT EXISTS `rooms`(
     `id` INT NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(10),
     `hour_price` DECIMAL(5,2) NOT NULL,
+    `description` TEXT,
     `available` BOOLEAN DEFAULT(TRUE),
     PRIMARY KEY(`id`)
 );
@@ -62,7 +30,7 @@ CREATE TABLE IF NOT EXISTS `rooms`(
 CREATE TABLE IF NOT EXISTS `time_accounts`(
     `id` INT NOT NULL AUTO_INCREMENT,
     `client_id` INT NOT NULL,
-    `hours_amount` INT NOT NULL,
+    `time_balance` INT NOT NULL,
     `expire_date` DATE DEFAULT (NextYear()),
     `start_date` DATE DEFAULT (CURRENT_DATE),
     PRIMARY KEY(`id`),
@@ -84,3 +52,63 @@ CREATE TABLE IF NOT EXISTS `reservations`(
     FOREIGN KEY(`client_id`) REFERENCES `clients`(`id`),
     FOREIGN KEY(`room_id`) REFERENCES `rooms`(`id`)
 );
+
+
+
+-- create triggers and functions
+---- when a client reserve a room, the amount of hour will be substract from time_account of the client
+DELIMITER //
+CREATE TRIGGER `update_time_account` AFTER INSERT ON `reservations`
+FOR EACH ROW
+BEGIN
+    UPDATE `time_accounts`
+    SET `time_balance` = `time_balance` - NEW.`total_hours`
+    WHERE `client_id` = NEW.`client_id`;
+END //
+DELIMITER ;
+
+---- when insert a new client, create a time_account associated
+DELIMITER //
+CREATE TRIGGER `create_time_account` AFTER INSERT ON `clients`
+FOR EACH ROW
+BEGIN
+    INSERT INTO `time_accounts` (`client_id`, `time_balance`, `expire_date`, `start_date`)
+    VALUES (NEW.id, 0, NextYear(), CURDATE());
+END //
+DELIMITER ;
+
+---- calculete next year. this functions its for measure expire date
+DELIMITER //
+CREATE FUNCTION IF NOT EXISTS `NextYear`() RETURNS DATE
+DETERMINISTIC
+BEGIN
+    RETURN CURDATE() + INTERVAL 1 YEAR;
+END //
+DELIMITER ;
+
+
+-- create indexes
+CREATE INDEX `reservation_client_id` ON `reservations`(`client_id`);
+CREATE INDEX `reservation_room_id` ON `reservations`(`room_id`);
+CREATE INDEX `time_account_client_id` ON `time_accounts`(`client_id`);
+CREATE INDEX `client_name`ON `clients`(`name`);
+
+
+-- create views
+---- show all clients with time account
+CREATE VIEW `clients_accounts` AS
+    SELECT *
+    FROM `clients`  
+    JOIN `time_accounts` ON `clients`.`id` = `time_accounts`.`client_id`;   
+
+---- show all clients reservations
+CREATE VIEW `clients_reservations` AS
+    SELECT * 
+    FROM `clients`
+    JOIN `reservations` ON `clients`.`id` = `reservations`.`client_id`;
+
+---- show all rooms reservations
+CREATE VIEW `rooms_reservations` AS
+    SELECT *
+    FROM `rooms`
+    JOIN `reservations` ON `rooms`.`id` = `reservations`.`room_id`;
