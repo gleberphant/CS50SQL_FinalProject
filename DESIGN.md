@@ -69,6 +69,7 @@ The types were chosen to accurately represent the data:
 - **PRIMARY KEY** uniquely identifies each record.
 - **FOREIGN KEY** establishes relationships between tables.
 - **DEFAULT** provides default values for certain fields.
+- **CHECK** constraints to verify values more than zero for time balance and reserved hours
 
 ### Relationships
 
@@ -80,7 +81,7 @@ The types were chosen to accurately represent the data:
 - A reservation refer to one especific room.
 - A room can has none or multiply reservations.
 - A cliente have a time_account.
-- Everytime a client made a reservátion the total hours are subtracted from time balance of the time account of the client
+- Everytime a client made a reservátion the total hours are subtracted from time balance of the time account of the client,  if the time reserved is less than time balance of the client.
 
 ## Optimizations
 
@@ -98,7 +99,7 @@ The types were chosen to accurately represent the data:
     - `rooms_reservations` : to show all rooms reservations
 
 - **TRIGGERS**
-    - `update_time_account`: when a client reserve a room, substract the total of hour from time account of the client
+    - `update_time_account`: when a client reserve a room, substract the reserve hour from time balance of the client if time reserved is less than time balance of the client. 
     - `create_time_account`: when insert a new client, create a time_account associated
 
 - **FUNCTIONS**
